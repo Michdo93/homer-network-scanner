@@ -28,10 +28,19 @@ def check_website(ip, port):
                 if not icon_link.startswith('http'):
                     icon_link = f"http://{ip}:{port}/{icon_link.lstrip('/')}"
             
-            # Ausgabe der Webseite
-            print(f"URL: {url}, Title: {title}, Icon: {icon_link}")
+            # Suche nach einem Bild (z. B. Firmenlogo) im <img>-Tag
+            logo_link = None
+            img_tags = soup.find_all('img')
+            for img in img_tags:
+                src = img.get('src')
+                if 'logo' in src.lower() or 'icon' in src.lower():
+                    logo_link = src
+                    if not logo_link.startswith('http'):
+                        logo_link = f"http://{ip}:{port}/{logo_link.lstrip('/')}"
+                    break
             
-            return {"ip": ip, "port": port, "url": url, "title": title, "icon": icon_link}
+            # Titel, Icon oder Logo zurückgeben
+            return {"ip": ip, "port": port, "url": url, "title": title, "icon": icon_link or logo_link}
         else:
             return None
     except (requests.ConnectionError, requests.Timeout):
@@ -59,12 +68,11 @@ def scan_ip_range(start_ip, end_ip, ports):
     results = []
     ip_addresses = ip_range(start_ip, end_ip)
 
-    # Durch jede IP-Adresse und jeden Port iterieren
     for ip in ip_addresses:
         for port in ports:
             result = check_website(ip, port)
             if result:
-                results.append(result)  # Treffer werden zur Liste hinzugefügt
+                results.append(result)
 
     return results
 
@@ -72,7 +80,6 @@ def scan_ip_range(start_ip, end_ip, ports):
 def generate_homer_yaml(websites):
     yaml_output = []
     
-    # YAML-Konfiguration für das Dashboard
     yaml_output.append('title: "Dashboard"')
     yaml_output.append('subtitle: "Your Dashboard"')
     yaml_output.append('logo: "logo.png"')
@@ -89,8 +96,7 @@ def generate_homer_yaml(websites):
 
     # Durch alle Webseiten iterieren und YAML-Einträge hinzufügen
     for site in websites:
-        title = site["title"].replace("\n", " ").strip()  # Titel formatieren
-        yaml_output.append(f'      - name: "{title}"')
+        yaml_output.append(f'      - name: "{site["title"]}"')
         yaml_output.append(f'        subtitle: "{site["ip"]}:{site["port"]}"')
         yaml_output.append(f'        logo: "{site["icon"] or "default_logo.png"}"')
         yaml_output.append(f'        tag: "{site["port"]}"')  # Port als Tag verwenden
